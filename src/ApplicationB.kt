@@ -2,8 +2,10 @@ package com.joram
 
 import arrow.core.Either
 import arrow.core.right
+import com.joram.examples.ProtoModels
 import com.joram.model.CommunicationMethod
 import com.joram.model.WhoIsRequest
+import com.joram.model.WhoIsResponse
 import com.joram.model.toResponse
 import io.ktor.application.Application
 import io.ktor.application.call
@@ -49,6 +51,21 @@ fun Application.moduleB(testing: Boolean = false) {
             Either.resolve(
                 f = { InvokeClient.invokeServiceA(WhoIsRequest(APP_NAME)) },
                 success = { a -> handleSuccess(call, a) },
+                error = { e -> handleDomainError(call, ::logError, e) },
+                throwable = { throwable -> handleSystemFailure(call, ::logError, throwable) },
+                unrecoverableState = { e -> logError(e) }
+            )
+        }
+
+        get("/who2") {
+            Either.resolve(
+                f = {
+                    val whoIsRequest = ProtoModels.WhoIsRequest.newBuilder().setRequestFrom(APP_NAME).build()
+                    InvokeGrpcClient.invokeServiceA(whoIsRequest)
+                },
+                success = { whoIsResponse: ProtoModels.WhoIsResponse ->
+                    handleSuccess(call, WhoIsResponse(whoIsResponse.requestFrom, whoIsResponse.responseFrom, whoIsResponse.communicationMethod, whoIsResponse.message))
+                },
                 error = { e -> handleDomainError(call, ::logError, e) },
                 throwable = { throwable -> handleSystemFailure(call, ::logError, throwable) },
                 unrecoverableState = { e -> logError(e) }
