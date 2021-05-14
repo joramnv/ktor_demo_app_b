@@ -9,6 +9,7 @@ import com.joram.model.WhoIsResponse
 import com.joram.model.toResponse
 import io.ktor.application.Application
 import io.ktor.application.call
+import io.ktor.config.ApplicationConfig
 import io.ktor.request.receive
 import io.ktor.routing.get
 import io.ktor.routing.post
@@ -19,6 +20,7 @@ fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.moduleB(testing: Boolean = false) {
+    val applicationConfig: ApplicationConfig = environment.config
 
     routing {
         get("/") {
@@ -49,7 +51,7 @@ fun Application.moduleB(testing: Boolean = false) {
 
         get("/who") {
             Either.resolve(
-                f = { InvokeClient.invokeServiceA(WhoIsRequest(APP_NAME)) },
+                f = { InvokeClient.invokeServiceA(WhoIsRequest(getAppName(applicationConfig.getAppId()))) },
                 success = { a -> handleSuccess(call, a) },
                 error = { e -> handleDomainError(call, ::logError, e) },
                 throwable = { throwable -> handleSystemFailure(call, ::logError, throwable) },
@@ -60,7 +62,7 @@ fun Application.moduleB(testing: Boolean = false) {
         get("/who2") {
             Either.resolve(
                 f = {
-                    val whoIsRequest = ProtoModels.WhoIsRequest.newBuilder().setRequestFrom(APP_NAME).build()
+                    val whoIsRequest = ProtoModels.WhoIsRequest.newBuilder().setRequestFrom(getAppName(applicationConfig.getAppId())).build()
                     InvokeGrpcClient.invokeServiceA(whoIsRequest)
                 },
                 success = { whoIsResponse: ProtoModels.WhoIsResponse ->
@@ -76,7 +78,7 @@ fun Application.moduleB(testing: Boolean = false) {
             Either.resolve(
                 f = {
                     val whoIsRequest = call.receive<WhoIsRequest>()
-                    whoIsRequest.toResponse(APP_NAME, CommunicationMethod.HTTP.name).right()
+                    whoIsRequest.toResponse(getAppName(applicationConfig.getAppId()), CommunicationMethod.HTTP.name).right()
                 },
                 success = { a -> handleSuccess(call, a) },
                 error = { e -> handleDomainError(call, ::logError, e) },
@@ -86,5 +88,3 @@ fun Application.moduleB(testing: Boolean = false) {
         }
     }
 }
-
-private const val APP_NAME = "app-b"
